@@ -1,9 +1,12 @@
-﻿namespace Evaluator.Core;
+﻿using System.Text;
+
+namespace Evaluator.Core;
 
 public class ExpressionEvaluator
 {
     public static double Evaluate(string infix)
     {
+        
         var postfix = InfixToPostfix(infix);
         return Calulate(postfix);
     }
@@ -11,18 +14,30 @@ public class ExpressionEvaluator
     private static string InfixToPostfix(string infix)
     {
         var stack = new Stack<char>();
-        var postfix = string.Empty;
+        var postfix = new StringBuilder();
+        var number = new StringBuilder();
+
         foreach (char item in infix)
         {
-            if (IsOperator(item))
+            if (char.IsDigit(item) || item == '.')
             {
+               
+                number.Append(item);
+            }
+            else if (IsOperator(item))
+            {
+               
+                if (number.Length > 0)
+                {
+                    postfix.Append(number.ToString() + " ");
+                    number.Clear();
+                }
+
                 if (item == ')')
                 {
-                    do
-                    {
-                        postfix += stack.Pop();
-                    } while (stack.Peek() != '(');
-                    stack.Pop();
+                    while (stack.Peek() != '(')
+                        postfix.Append(stack.Pop() + " ");
+                    stack.Pop(); 
                 }
                 else
                 {
@@ -34,7 +49,7 @@ public class ExpressionEvaluator
                         }
                         else
                         {
-                            postfix += stack.Pop();
+                            postfix.Append(stack.Pop() + " ");
                             stack.Push(item);
                         }
                     }
@@ -44,16 +59,19 @@ public class ExpressionEvaluator
                     }
                 }
             }
-            else
+            else if (!char.IsWhiteSpace(item))
             {
-                postfix += item;
+                throw new Exception($"Invalid character: {item}");
             }
         }
+
+        if (number.Length > 0)
+            postfix.Append(number.ToString() + " ");
+
         while (stack.Count > 0)
-        {
-            postfix += stack.Pop();
-        }
-        return postfix;
+            postfix.Append(stack.Pop() + " ");
+
+        return postfix.ToString().Trim();
     }
 
     private static bool IsOperator(char item) => item is '^' or '/' or '*' or '%' or '+' or '-' or '(' or ')';
@@ -79,17 +97,19 @@ public class ExpressionEvaluator
     private static double Calulate(string postfix)
     {
         var stack = new Stack<double>();
-        foreach (char item in postfix)
+        var tokens = postfix.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var token in tokens)
         {
-            if (IsOperator(item))
+            if (token.Length == 1 && IsOperator(token[0]))
             {
                 var op2 = stack.Pop();
                 var op1 = stack.Pop();
-                stack.Push(Calulate(op1, item, op2));
+                stack.Push(Calulate(op1, token[0], op2));
             }
             else
             {
-                stack.Push(Convert.ToDouble(item.ToString()));
+                stack.Push(Convert.ToDouble(token, System.Globalization.CultureInfo.InvariantCulture));
             }
         }
         return stack.Peek();
@@ -104,4 +124,5 @@ public class ExpressionEvaluator
         '-' => op1 - op2,
         _ => throw new Exception("Invalid expression."),
     };
+
 }
